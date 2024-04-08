@@ -5,6 +5,7 @@ const emailService = require("./email-service");
 const TokenService = require("./token-service");
 const UserDto = require("../dtos/user-dto");
 const tokenService = require("./token-service");
+const ApiError = require("../exceptions/api-error")
 
 class UserService {
     //логика регистрации пользователя
@@ -12,7 +13,7 @@ class UserService {
         //проверка есть ли такой пользлователь по { email }
         const candidate = await UserModel.findOne({ email });
         if (candidate ) {
-            throw new Error(`пользователь с таким почтовым адресом ${email} уже есть`)
+            throw ApiError.BadRequest(`пользователь с таким почтовым адресом ${email} уже есть`)
         }
 
         ///шифровка пароля 
@@ -25,7 +26,7 @@ class UserService {
         const user = await UserModel.create({ email,password: hashPassword,activationLink: activationLink });
 
         //отправка { activationLink } пользователю на его { email }
-        await emailService.sendActivationEmail(email,activationLink);
+        await emailService.sendActivationEmail(email, `${process.env.API_URL}/api/activate/${activationLink}`);
 
         const userDTO = new UserDto(user); //id , email, isActivated
         //генерируем токены 
@@ -35,6 +36,17 @@ class UserService {
         await tokenService.saveToken(userDTO.id, tokens.refreshToken);
 
         return { ...tokens,user: userDTO }
+    }
+    //логика активации аккаунта
+    async activate(activationLink) {
+        const user = await UserModel.findOne({activationLink});
+        //проверка что в базе данных такой пользователь уже есть
+        if(!user) {
+            throw ApiError.BadRequest("некоректная ссылка для активации")
+        }
+        //иначе записыаем что пользователь активирован и сораням его в базе данных
+        user.isActivated = true;
+        await user.save();
     }
 }
 
