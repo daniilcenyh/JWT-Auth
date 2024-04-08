@@ -34,10 +34,7 @@ class UserService {
         //сохраням refresh токен в базу данных
         await tokenService.saveToken(userDTO.id, tokens.refreshToken);
 
-        return { 
-            ...tokens,
-            user: userDTO
-        }
+        return { ...tokens,user: userDTO }
     }
 }
 
